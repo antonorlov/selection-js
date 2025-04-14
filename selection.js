@@ -1,5 +1,25 @@
 const Selection = (function() {
+  
   function copyTextToClipboard(text) {
+    // Use modern Clipboard API if available
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          console.log('Text copied to clipboard successfully');
+        })
+        .catch(err => {
+          console.log('Failed to copy text: ', err);
+          // Fall back to older method if permission denied
+          copyTextToClipboardFallback(text);
+        });
+      return;
+    }
+    
+    // Fallback for older browsers
+    copyTextToClipboardFallback(text);
+  }
+  
+  function copyTextToClipboardFallback(text) {
     const textArea = document.createElement('textarea')
     textArea.style.position = 'fixed'
     textArea.style.top = 0
@@ -18,11 +38,12 @@ const Selection = (function() {
     textArea.select()
 
     try {
+      // Deprecated
       const successful = document.execCommand('copy')
       const msg = successful ? 'successful' : 'unsuccessful'
-      console.log('Copying text command was ' + msg)
+      console.log('Fallback: Copying text was ' + msg)
     } catch (err) {
-      console.log('Oops, unable to copy')
+      console.log('Fallback: Unable to copy', err)
     }
 
     document.body.removeChild(textArea)
@@ -79,7 +100,7 @@ const Selection = (function() {
       btn.innerHTML = innerHTML
       btn.onclick = () => cb(text, selectionNode)
       btn.onmouseover = function() {
-        this.style.transform = 'scale(1.2)'
+        this.style.transform = 'scale(1.1)'
       }
       btn.onmouseout = function() {
         this.style.transform = 'scale(1)'
@@ -174,15 +195,15 @@ const Selection = (function() {
       if (el) el.remove()
     }
 
-    function checkToolTip(event, cb) {
-      for (let el of event.path) {
-        if (rootElement === el) {
-          selection = window.getSelection()
-          text = selection.toString()
-          return cb()
-        }
+    function checkToolTip(cb) {
+      selection = window.getSelection();
+      text = selection.toString();
+      
+      if (rootElement.contains && rootElement.contains(selection.anchorNode)) {
+        return cb();
       }
-      return removeToolTip()
+      
+      return removeToolTip();
     }
 
     function attachEvents() {
@@ -200,12 +221,12 @@ const Selection = (function() {
           setTimeout(() => {
             if (hasTooltipDrawn()) {
               if (hasSelection()) { 
-                checkToolTip(event, moveTooltip)
+                checkToolTip(moveTooltip)
               } else {
                 removeToolTip()
               }
             } else if (hasSelection()) {
-              checkToolTip(event, drawTooltip)
+              checkToolTip(drawTooltip)
             }
           }, 10)
         },
@@ -229,8 +250,9 @@ const Selection = (function() {
     }
 
     return {
-      config: config,
-      init: init
+      config,
+      init,
+      copyTextToClipboard
     }
   }
 
